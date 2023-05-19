@@ -8,6 +8,7 @@
 
 
 # In[1]:
+pip install -r requirements.txt
 
 
 import mediapipe as mp
