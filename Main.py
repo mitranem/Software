@@ -7,19 +7,37 @@
 # pip install mediapipe opencv-python msvc-runtime
 
 
-# In[2]:
+# In[1]:
 
 
 import mediapipe as mp
 import cv2
 
-
 import csv
 import os
 import numpy as np
 
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
-# In[3]:
+from sklearn.pipeline import make_pipeline 
+from sklearn.preprocessing import StandardScaler 
+
+from sklearn.linear_model import LogisticRegression, RidgeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+from sklearn.metrics import accuracy_score # Accuracy metrics 
+import pickle 
+
+from collections import Counter
+import matplotlib.pyplot as plt
+
+import customtkinter as ctk
+import tkinter.messagebox as tkmb
+import cv2
+from PIL import Image, ImageTk
+
+# In[2]:
 
 
 mp_drawing = mp.solutions.drawing_utils
@@ -28,7 +46,7 @@ mp_holistic = mp.solutions.holistic
 
 # # Feed from Camera and detection
 
-# In[4]:
+# In[3]:
 
 
 cap = cv2.VideoCapture(0)
@@ -87,18 +105,19 @@ cv2.destroyAllWindows()
 
 # # Capture Landmark and export to CSV
 
-# In[5]:
+# In[3]:
 
 
 
-# In[6]:
+
+# In[40]:
 
 
 num_coords = len(results.pose_landmarks.landmark)+len(results.face_landmarks.landmark)
 num_coords
 
 
-# In[7]:
+# In[41]:
 
 
 landmarks = ['class']
@@ -106,13 +125,13 @@ for val in range(1, num_coords+1):
     landmarks += ['x{}'.format(val), 'y{}'.format(val), 'z{}'.format(val), 'v{}'.format(val)]
 
 
-# In[8]:
+# In[42]:
 
 
 landmarks
 
 
-# In[9]:
+# In[43]:
 
 
 with open('coords.csv', mode='w', newline='') as f:
@@ -120,13 +139,13 @@ with open('coords.csv', mode='w', newline='') as f:
     csv_writer.writerow(landmarks)
 
 
-# In[15]:
+# In[40]:
 
 
-class_name = "Happy"
+class_name = "Angry"
 
 
-# In[16]:
+# In[41]:
 
 
 cap = cv2.VideoCapture(0)
@@ -207,54 +226,54 @@ cv2.destroyAllWindows()
 
 # # Splitting into train and test
 
-# In[17]:
+# In[42]:
 
 
 
-# In[18]:
+# In[43]:
 
 
 df = pd.read_csv('coords.csv')
 
 
-# In[19]:
+# In[44]:
 
 
 df.head()
 
 
-# In[20]:
+# In[45]:
 
 
 df.head()
 
 
-# In[21]:
+# In[46]:
 
 
 df.tail()
 
 
-# In[22]:
+# In[47]:
 
 
 df[df['class']=='Sad']
 
 
-# In[23]:
+# In[48]:
 
 
 X = df.drop('class', axis=1) # features
 y = df['class'] # target value
 
 
-# In[24]:
+# In[49]:
 
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1234)
 
 
-# In[28]:
+# In[50]:
 
 
 y_train
@@ -262,28 +281,23 @@ y_train
 
 # # Training and Evaluating Model
 
-# In[29]:
+# In[51]:
 
 
-from sklearn.pipeline import make_pipeline 
-from sklearn.preprocessing import StandardScaler 
-
-from sklearn.linear_model import LogisticRegression, RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 
-# In[30]:
+# In[52]:
 
 
 pipelines = {
-    'lr':make_pipeline(StandardScaler(), LogisticRegression()),
+    'lr':make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),
     'rc':make_pipeline(StandardScaler(), RidgeClassifier()),
     'rf':make_pipeline(StandardScaler(), RandomForestClassifier()),
     'gb':make_pipeline(StandardScaler(), GradientBoostingClassifier()),
 }
 
 
-# In[31]:
+# In[53]:
 
 
 fit_models = {}
@@ -292,26 +306,24 @@ for algo, pipeline in pipelines.items():
     fit_models[algo] = model
 
 
-# In[32]:
+# In[54]:
 
 
 fit_models
 
 
-# In[33]:
+# In[55]:
 
 
 fit_models['rc'].predict(X_test)
 
 
-# In[34]:
+# In[56]:
 
 
-from sklearn.metrics import accuracy_score # Accuracy metrics 
-import pickle 
 
 
-# In[35]:
+# In[57]:
 
 
 for algo, model in fit_models.items():
@@ -319,19 +331,19 @@ for algo, model in fit_models.items():
     print(algo, accuracy_score(y_test, yhat))
 
 
-# In[36]:
+# In[58]:
 
 
 fit_models['rf'].predict(X_test)
 
 
-# In[37]:
+# In[59]:
 
 
 y_test
 
 
-# In[39]:
+# In[60]:
 
 
 with open('body_language.pkl', 'wb') as f:
@@ -340,28 +352,39 @@ with open('body_language.pkl', 'wb') as f:
 
 # # Make Detections
 
-# In[40]:
+# In[61]:
 
 
 with open('body_language.pkl', 'rb') as f:
     model = pickle.load(f)
 
 
-# In[41]:
+# In[62]:
 
 
 model
 
 
-# In[45]:
+# In[28]:
+
+
+type(body_language_class.split(' ')[0])
+
+
+# In[79]:
 
 
 cap = cv2.VideoCapture(0)
 # Initiate holistic model
+width= int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height= int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+emotions=[]
+writer= cv2.VideoWriter('basicvideo.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 20, (width,height))
 with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
     
     while cap.isOpened():
         ret, frame = cap.read()
+        
         
         # Recolor Feed
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -450,11 +473,16 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
             cv2.putText(image, body_language_class.split(' ')[0]
                         , (90,40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
             
+            
             # Display Probability
             cv2.putText(image, 'PROB'
                         , (15,12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
             cv2.putText(image, str(round(body_language_prob[np.argmax(body_language_prob)],2))
                         , (10,40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            
+            emotions += [body_language_class.split(' ')[0]]
+            
+            writer.write(frame)
             
         except:
             pass
@@ -465,36 +493,146 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
             break
 
 cap.release()
-cv2.destroyAllWindows()
-
-
-# In[44]:
-
-
-import cv2
-
-cap= cv2.VideoCapture(0)
-
-width= int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height= int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-writer= cv2.VideoWriter('basicvideo.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 20, (width,height))
-
-
-while True:
-    ret,frame= cap.read()
-
-    writer.write(frame)
-
-    cv2.imshow('frame', frame)
-
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
-
-
-cap.release()
 writer.release()
 cv2.destroyAllWindows()
+
+
+# In[78]:
+
+frequency = Counter(emotions)
+xa=[]
+ya=[]
+print(frequency)
+for string, frequency in frequency.items():
+    xa += [string]
+    ya.append(frequency)
+
+plt.plot(xa, ya, color='green', linestyle='dashed', linewidth = 3,
+         marker='o', markerfacecolor='blue', markersize=12)
+  
+
+
+# In[1]:
+
+  
+# Selecting GUI theme - dark, light , system (for system default)
+ctk.set_appearance_mode("dark")
+  
+# Selecting color theme - blue, green, dark-blue
+ctk.set_default_color_theme("blue")
+  
+app = ctk.CTk()
+app.geometry("400x400")
+app.title("Modern Login UI using Customtkinter")
+  
+def process_frames():
+    _, frame = cap.read()
+    # Perform any necessary image processing or analysis on the frame
+    # ...
+
+    # Display the processed frame in the GUI
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    photo = ImageTk.PhotoImage(image=Image.fromarray(image))
+    video_label.config(image=photo)
+    video_label.image = photo
+
+    # Call this function again after a delay to process the next frame
+    window.after(10, process_frames)
+
+# Function to start video recording
+def start_recording():
+    global is_recording, out
+    if not is_recording:
+        is_recording = True
+        out = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 30, (640, 480))
+
+# Function to stop video recording
+def stop_recording():
+    global is_recording, out
+    if is_recording:
+        is_recording = False
+        out.release()
+
+def video():
+    video_app=ctk.CTk()
+    video_app.geometry("400x400")
+    video_app.title("Recording page")
+    vlabel = ctk.CTkLabel(app,text="This is the main recording page")
+    label.pack(pady=20)
+    vframe = ctk.CTkFrame(master=video_app)
+    vframe.pack(pady=20,padx=40,fill='both',expand=True)
+    vlabel = ctk.CTkLabel(master=vframe,text="Main recording page")
+    vlabel.pack(pady=12,padx=10)
+    record_button = ctk.CTkButton(master=vframe, text="Start Recording",command=start_recording)
+    record_button.pack(pady=12,padx=10)
+    stop_button = ctk.CTkButton(master=vframe, text="Stop Recording",command=stop_recording)
+    stop_button.pack(pady=12,padx=10)
+    cap = cv2.VideoCapture(0)
+    is_recording = False
+    out = None
+    # Start processing video frames
+    _, frame = cap.read()
+    # Perform any necessary image processing or analysis on the frame
+    # ...
+
+    # Display the processed frame in the GUI
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    photo = ImageTk.PhotoImage(image=Image.fromarray(image))
+    vlabel.configure(image=photo)
+    vlabel.image = photo
+
+    # Call this function again after a delay to process the next frame
+    video_app.after(10, process_frames)
+    cap.release
+    video_app.mainloop()
+
+def login():
+  
+    username = "Geeks"
+    password = "12345"
+    new_window = ctk.CTkToplevel(app)
+  
+    new_window.title("New Window")
+  
+    new_window.geometry("350x150")
+  
+    if user_entry.get() == username and user_pass.get() == password:
+        tkmb.showinfo(title="Login Successful",message="You have logged in Successfully")
+        video()
+    elif user_entry.get() == username and user_pass.get() != password:
+        tkmb.showwarning(title='Wrong password',message='Please check your password')
+    elif user_entry.get() != username and user_pass.get() == password:
+        tkmb.showwarning(title='Wrong username',message='Please check your username')
+    else:
+        tkmb.showerror(title="Login Failed",message="Invalid Username and password")
+  
+  
+  
+label = ctk.CTkLabel(app,text="This is the main UI page")
+  
+label.pack(pady=20)
+  
+  
+frame = ctk.CTkFrame(master=app)
+frame.pack(pady=20,padx=40,fill='both',expand=True)
+  
+label = ctk.CTkLabel(master=frame,text='Modern Login System UI')
+label.pack(pady=12,padx=10)
+  
+  
+user_entry= ctk.CTkEntry(master=frame,placeholder_text="Username")
+user_entry.pack(pady=12,padx=10)
+  
+user_pass= ctk.CTkEntry(master=frame,placeholder_text="Password",show="*")
+user_pass.pack(pady=12,padx=10)
+  
+  
+button = ctk.CTkButton(master=frame,text='Login',command=login)
+button.pack(pady=12,padx=10)
+  
+  
+  
+app.mainloop()
 
 
 # In[ ]:
